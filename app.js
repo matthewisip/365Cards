@@ -10,47 +10,70 @@ import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } 
     appId: "1:392837639634:web:28dbd6ca100c895097ac0b",
     measurementId: "G-QSYTMBZ5QG"
   };
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
+  // Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Collection reference
 const cardsCollection = collection(db, "cards");
 
 // Save a card to Firestore
 async function saveCard(date, question) {
-  await addDoc(cardsCollection, { date, question });
+  try {
+    const docRef = await addDoc(cardsCollection, { date, question });
+    console.log("Card saved with ID:", docRef.id);
+    return docRef.id; // Return the ID of the saved card
+  } catch (error) {
+    console.error("Error saving card:", error);
+  }
 }
 
 // Fetch all cards from Firestore
 async function fetchCards() {
-  const querySnapshot = await getDocs(cardsCollection);
-  const cards = [];
-  querySnapshot.forEach((doc) => {
-    cards.push({ id: doc.id, ...doc.data() });
-  });
-  return cards;
+  try {
+    const querySnapshot = await getDocs(cardsCollection);
+    const cards = [];
+    querySnapshot.forEach((doc) => {
+      cards.push({ id: doc.id, ...doc.data() });
+    });
+    return cards;
+  } catch (error) {
+    console.error("Error fetching cards:", error);
+  }
 }
 
 // Delete a card from Firestore
 async function deleteCardFromFirestore(cardId) {
-  await deleteDoc(doc(db, "cards", cardId));
+  try {
+    await deleteDoc(doc(db, "cards", cardId));
+    console.log("Card deleted:", cardId);
+  } catch (error) {
+    console.error("Error deleting card:", error);
+  }
 }
 
 // Update a card in Firestore
 async function updateCardInFirestore(cardId, updatedData) {
-  await updateDoc(doc(db, "cards", cardId), updatedData);
+  try {
+    await updateDoc(doc(db, "cards", cardId), updatedData);
+    console.log("Card updated:", cardId);
+  } catch (error) {
+    console.error("Error updating card:", error);
+  }
 }
 
-// Example: Fetch cards and display them
+// Load and display cards from Firestore
 async function loadAndDisplayCards() {
   const cards = await fetchCards();
+  const cardContainer = document.getElementById("cardContainer");
+  cardContainer.innerHTML = ""; // Clear existing cards
   cards.forEach((card) => {
-    addCard(card.date, card.question, card.id); // Modify addCard to accept card ID
+    addCard(card.date, card.question, card.id);
   });
+  updateCardDays(); // Update day numbers
 }
 
-// Modify `addCard` function to include card ID for editing/deleting
+// Add a card to the DOM
 function addCard(dateValue, questionValue, cardId = null) {
   const cardContainer = document.getElementById("cardContainer");
   const card = document.createElement("div");
@@ -71,19 +94,101 @@ function addCard(dateValue, questionValue, cardId = null) {
     </div>
   `;
   cardContainer.appendChild(card);
-  updateCardDays();
 }
 
-// Modify `deleteCard` to remove from Firestore
-function deleteCard(button) {
-  const card = button.closest(".card");
-  const cardId = card.dataset.id; // Firestore card ID
-  if (cardId) {
-    deleteCardFromFirestore(cardId).then(() => {
-      card.remove();
-      updateCardDays();
-    });
+// Show the input form
+function showInputForm() {
+  document.getElementById("inputForm").style.display = "block";
+  document.getElementById("addCardButton").style.display = "none";
+  document.getElementById("dateInput").value = "";
+  document.getElementById("questionInput").value = "";
+  document.getElementById("editIndicator").textContent = "";
+  document.getElementById("deleteButton").style.display = "none";
+  editingCard = null;
+}
+
+// Submit a new card
+async function submitNewCard() {
+  const dateValue = document.getElementById("dateInput").value;
+  const questionValue = document.getElementById("questionInput").value;
+
+  if (!dateValue || !questionValue) {
+    alert("Please enter both a date and a question.");
+    return;
   }
+
+  if (editingCard) {
+    // Update existing card
+    const cardId = editingCard.dataset.id;
+    editingCard.querySelector(".card-date").textContent = `Date: ${dateValue}`;
+    editingCard.querySelector(".card-question").textContent = `Question: ${questionValue}`;
+    await updateCardInFirestore(cardId, { date: dateValue, question: questionValue });
+  } else {
+    // Create a new card
+    const cardId = await saveCard(dateValue, questionValue);
+    addCard(dateValue, questionValue, cardId);
+  }
+
+  // Reset form and hide it
+  document.getElementById("inputForm").style.display = "none";
+  document.getElementById("addCardButton").style.display = "block";
+  updateCardDays(); // Update day numbers
+}
+
+// Edit a card
+function editCard(button) {
+  const card = button.closest(".card");
+  editingCard = card; // Reference the card being edited
+
+  // Populate form with card data
+  const dateValue = card.querySelector(".card-date").textContent.replace("Date: ", "");
+  const questionValue = card.querySelector(".card-question").textContent.replace("Question: ", "");
+
+  document.getElementById("dateInput").value = dateValue;
+  document.getElementById("questionInput").value = questionValue;
+  document.getElementById("inputForm").style.display = "block";
+  document.getElementById("addCardButton").style.display = "none";
+  document.getElementById("editIndicator").textContent = `Editing Card`;
+  document.getElementById("deleteButton").style.display = "block";
+}
+
+// Delete a card
+async function deleteCard(button) {
+  const card = button.closest(".card");
+  const cardId = card.dataset.id;
+  if (cardId) {
+    await deleteCardFromFirestore(cardId);
+    card.remove();
+    updateCardDays(); // Update day numbers
+  }
+}
+
+// Move a card up
+function moveCardUp(button) {
+  const card = button.closest(".card");
+  const previousCard = card.previousElementSibling;
+  if (previousCard) {
+    card.parentNode.insertBefore(card, previousCard);
+    updateCardDays(); // Update day numbers
+  }
+}
+
+// Move a card down
+function moveCardDown(button) {
+  const card = button.closest(".card");
+  const nextCard = card.nextElementSibling;
+  if (nextCard) {
+    card.parentNode.insertBefore(nextCard, card);
+    updateCardDays(); // Update day numbers
+  }
+}
+
+// Update day numbers dynamically
+function updateCardDays() {
+  const cards = document.querySelectorAll(".card");
+  cards.forEach((card, index) => {
+    card.querySelector(".card-header").textContent = `Day ${index + 1}`;
+  });
 }
 
 // Load cards on page load
