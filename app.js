@@ -107,8 +107,19 @@ function showInputForm() {
   editingCard = null;
 }
 
-// Submit a new card
+function showInputForm() {
+  console.log("Add New Card button clicked"); // Log when button is clicked
+  document.getElementById("inputForm").style.display = "block";
+  document.getElementById("addCardButton").style.display = "none";
+  document.getElementById("dateInput").value = "";
+  document.getElementById("questionInput").value = "";
+  document.getElementById("editIndicator").textContent = "";
+  document.getElementById("deleteButton").style.display = "none";
+  editingCard = null;
+}
+
 async function submitNewCard() {
+  console.log("Submit New Card button clicked");
   const dateValue = document.getElementById("dateInput").value;
   const questionValue = document.getElementById("questionInput").value;
 
@@ -118,13 +129,13 @@ async function submitNewCard() {
   }
 
   if (editingCard) {
-    // Update existing card
+    console.log("Editing existing card");
     const cardId = editingCard.dataset.id;
     editingCard.querySelector(".card-date").textContent = `Date: ${dateValue}`;
     editingCard.querySelector(".card-question").textContent = `Question: ${questionValue}`;
     await updateCardInFirestore(cardId, { date: dateValue, question: questionValue });
   } else {
-    // Create a new card
+    console.log("Creating a new card");
     const cardId = await saveCard(dateValue, questionValue);
     addCard(dateValue, questionValue, cardId);
   }
@@ -132,25 +143,9 @@ async function submitNewCard() {
   // Reset form and hide it
   document.getElementById("inputForm").style.display = "none";
   document.getElementById("addCardButton").style.display = "block";
-  updateCardDays(); // Update day numbers
+  updateCardDays();
 }
 
-// Edit a card
-function editCard(button) {
-  const card = button.closest(".card");
-  editingCard = card; // Reference the card being edited
-
-  // Populate form with card data
-  const dateValue = card.querySelector(".card-date").textContent.replace("Date: ", "");
-  const questionValue = card.querySelector(".card-question").textContent.replace("Question: ", "");
-
-  document.getElementById("dateInput").value = dateValue;
-  document.getElementById("questionInput").value = questionValue;
-  document.getElementById("inputForm").style.display = "block";
-  document.getElementById("addCardButton").style.display = "none";
-  document.getElementById("editIndicator").textContent = `Editing Card`;
-  document.getElementById("deleteButton").style.display = "block";
-}
 
 // Delete a card
 async function deleteCard(button) {
